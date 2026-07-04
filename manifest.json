@@ -1,0 +1,16 @@
+{
+  "name": "프레임 뷰어",
+  "short_name": "프레임뷰어",
+  "description": "영상을 프레임으로 쪼개서 넘겨보고 겹쳐보고 PNG/PSD로 저장",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#ec4899",
+  "lang": "ko",
+  "icons": [
+    { "src": "favicon.png", "sizes": "192x192", "type": "image/png", "purpose": "any" },
+    { "src": "favicon.png", "sizes": "512x512", "type": "image/png", "purpose": "any" },
+    { "src": "favicon.png", "sizes": "1080x1080", "type": "image/png", "purpose": "any" }
+  ]
+}

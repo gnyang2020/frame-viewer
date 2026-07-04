@@ -1,0 +1,562 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<!-- 돈잘콘 임베드 전용 가드: 돈잘콘 안에서 열렸을 때만 작동. 직접 링크/외부 임베드 차단 (로컬 개발은 예외) -->
+<script>
+(function () {
+  var selfHost = location.hostname;
+  if (!selfHost || /^(localhost|127\.0\.0\.1|\[::1\])$/.test(selfHost)) return;
+  function parentOrigin() {
+    try {
+      var ao = location.ancestorOrigins;
+      if (ao && ao.length) return ao[0];
+      if (document.referrer) return new URL(document.referrer).origin;
+    } catch (e) {}
+    return '';
+  }
+  var inIframe = window.self !== window.top;
+  var pHost = '';
+  try { pHost = new URL(parentOrigin()).hostname; } catch (e) {}
+  var allowed = inIframe && (
+    /^donjalcon(-[a-z0-9-]+)?\.vercel\.app$/i.test(pHost) ||
+    /^(localhost|127\.0\.0\.1)$/.test(pHost)
+  );
+  if (allowed) return;
+  var dest = 'https://donjalcon.vercel.app/tools/frame-viewer';
+  if (window.top === window.self) { location.replace(dest); return; }
+  try { window.stop(); } catch (e) {}
+  document.documentElement.innerHTML =
+    '<head><meta charset="utf-8"></head>' +
+    '<body style="margin:0;font-family:-apple-system,system-ui,sans-serif;display:flex;min-height:100vh;align-items:center;justify-content:center;background:#f5f5f5;color:#1a1a1a;text-align:center;padding:24px">' +
+    '<div><div style="font-size:18px;font-weight:800;margin-bottom:8px">돈잘콘 전용 도구입니다</div>' +
+    '<div style="font-size:14px;color:#666;margin-bottom:20px">프레임 뷰어는 돈잘콘에서 로그인 후 이용할 수 있어요.</div>' +
+    '<a href="' + dest + '" target="_top" style="display:inline-block;background:#1a1a1a;color:#fff;padding:12px 20px;border-radius:10px;font-weight:700;text-decoration:none;font-size:14px">돈잘콘에서 열기</a>' +
+    '</div></body>';
+})();
+</script>
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>[쥐냥] 프레임 뷰어</title>
+<link rel="icon" type="image/png" href="favicon.png">
+
+<!-- PWA: 홈 화면에 추가하면 풀스크린 앱처럼 동작 -->
+<link rel="manifest" href="manifest.json">
+<link rel="apple-touch-icon" href="favicon.png">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="프레임 뷰어">
+<meta name="theme-color" content="#ec4899">
+
+<!-- 카카오톡·SNS 공유 미리보기 (OpenGraph) -->
+<meta property="og:type" content="website">
+<meta property="og:title" content="[쥐냥] 프레임 뷰어">
+<meta property="og:description" content="영상을 프레임으로 쪼개서 넘겨보고 겹쳐보고 PNG/PSD로 저장">
+<meta property="og:image" content="favicon.png">
+<meta property="og:locale" content="ko_KR">
+<style>
+  * { box-sizing: border-box; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, "Apple SD Gothic Neo", sans-serif;
+    max-width: 880px; margin: 0 auto; padding: 32px 20px;
+    background: #f6f7f9; color: #1f2328;
+  }
+  h1 { font-size: 22px; margin: 0 0 6px; letter-spacing: -.5px; }
+  .sub { color: #6b7280; font-size: 13px; margin-bottom: 8px; }
+  .edition-badge {
+    display: inline-block; margin-bottom: 18px;
+    background: #fce7f3; color: #9d174d; border: 1px solid #f9a8d4;
+    padding: 4px 12px; border-radius: 999px; font-size: 11px; font-weight: 700;
+    letter-spacing: .04em;
+  }
+
+  .card {
+    background: #fff; border-radius: 12px; padding: 20px 22px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.04), 0 1px 0 rgba(0,0,0,.02);
+    margin-bottom: 16px;
+  }
+  .card h2 { font-size: 14px; margin: 0 0 14px; color: #374151; letter-spacing: .2px; }
+  .card h2 .step { color: #ec4899; }
+
+  /* 드롭존 */
+  .drop {
+    border: 2px dashed #f9a8d4; border-radius: 12px; padding: 30px 20px; text-align: center;
+    cursor: pointer; transition: .18s; background: #fdf2f8;
+  }
+  .drop:hover, .drop.over { border-color: #ec4899; background: #fce7f3; }
+  .drop .big { font-size: 14px; font-weight: 700; color: #be185d; }
+  .drop .small { font-size: 12px; color: #d16fa0; margin-top: 5px; }
+  input[type=file] { display: none; }
+  .vinfo { font-size: 12.5px; color: #6b7280; margin-top: 12px; line-height: 1.6; }
+  .vinfo b { color: #1f2328; }
+
+  /* 크롭 */
+  #cropWrap { display: none; margin-top: 16px; }
+  .toggle { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600; color: #374151; cursor: pointer; user-select: none; }
+  .toggle input { width: 16px; height: 16px; accent-color: #ec4899; }
+  .cropStage {
+    position: relative; display: block; margin: 12px auto 0; width: max-content; max-width: 100%;
+    border-radius: 10px; overflow: hidden; touch-action: none; user-select: none; line-height: 0;
+  }
+  #cropCanvas { display: block; max-width: 100%; max-height: 44vh; width: auto; height: auto; }
+  #cropBox { position: absolute; border: 2px solid #ec4899; box-shadow: 0 0 0 9999px rgba(0,0,0,.5);
+    cursor: move; box-sizing: border-box; touch-action: none; }
+  #cropBox .handle { position: absolute; right: -10px; bottom: -10px; width: 22px; height: 22px;
+    background: #ec4899; border: 2px solid #fff; border-radius: 50%; cursor: nwse-resize; touch-action: none;
+    box-shadow: 0 1px 4px rgba(0,0,0,.3); }
+  #cropBox .dim { position: absolute; top: -23px; left: 0; font-size: 11px; font-weight: 700; color: #fff;
+    background: #ec4899; padding: 2px 7px; border-radius: 6px; white-space: nowrap; }
+  .hint { font-size: 12px; color: #6b7280; margin-top: 10px; line-height: 1.6; }
+  .hint b { color: #374151; }
+
+  /* 컨트롤 행 */
+  .row { display: flex; align-items: center; gap: 14px; margin: 12px 0 0; flex-wrap: wrap; }
+  .row .label { font-size: 13px; color: #374151; font-weight: 600; }
+  input[type=number] {
+    width: 72px; background: #fff; color: #1f2328; border: 1px solid #d1d5db;
+    border-radius: 8px; padding: 8px; font-size: 14px; text-align: center; font-family: inherit;
+  }
+  input[type=number]:focus { outline: none; border-color: #ec4899; }
+
+  /* 버튼 */
+  button {
+    background: #fff; color: #374151; border: 1px solid #d1d5db;
+    border-radius: 8px; padding: 9px 15px; font-size: 13px; font-weight: 600;
+    cursor: pointer; transition: .15s; font-family: inherit;
+  }
+  button:hover { background: #f3f4f6; }
+  button.primary { background: #ec4899; color: #fff; border-color: #ec4899; }
+  button.primary:hover { background: #db2777; }
+  button:disabled { opacity: .4; cursor: not-allowed; }
+  button.primary:disabled { background: #f9a8d4; border-color: #f9a8d4; }
+
+  .tip { display: none; font-size: 12px; color: #9d5b7a; background: #fdf2f8; border: 1.5px dashed #f9a8d4;
+    border-radius: 10px; padding: 11px 13px; margin-top: 12px; line-height: 1.7; }
+  .tip b { color: #be185d; }
+
+  /* 프로그레스 */
+  #progress { display: none; margin-top: 14px; }
+  .pbar-wrap { height: 6px; background: #f1e1ea; border-radius: 99px; overflow: hidden; }
+  .pbar-wrap > i { display: block; height: 100%; width: 0; background: #ec4899; transition: width .1s; }
+  .plbl { font-size: 12px; color: #6b7280; font-weight: 600; margin-top: 7px; }
+
+  /* 뷰어 */
+  #viewer { display: none; }
+  .stage {
+    background: #fff;
+    background-image:
+      linear-gradient(45deg, #eef0f3 25%, transparent 25%),
+      linear-gradient(-45deg, #eef0f3 25%, transparent 25%),
+      linear-gradient(45deg, transparent 75%, #eef0f3 75%),
+      linear-gradient(-45deg, transparent 75%, #eef0f3 75%);
+    background-size: 18px 18px; background-position: 0 0, 0 9px, 9px -9px, -9px 0;
+    border: 1px solid #e5e7eb; border-radius: 10px; padding: 12px;
+    display: flex; align-items: center; justify-content: center; min-height: 200px;
+  }
+  #display { max-width: 100%; max-height: 44vh; width: auto; height: auto; display: block; border-radius: 4px; }
+
+  .transport { display: flex; align-items: center; gap: 9px; flex-wrap: wrap; margin-top: 14px; }
+  .counter { font-variant-numeric: tabular-nums; font-size: 13px; color: #6b7280; font-weight: 600; min-width: 72px; }
+  .counter b { color: #1f2328; }
+  input[type=range] { accent-color: #ec4899; cursor: pointer; }
+  .seek { flex: 1; min-width: 150px; }
+  .ctl { display: flex; align-items: center; gap: 8px; font-size: 13px; color: #6b7280; font-weight: 600; }
+  .ctl input[type=range] { width: 110px; }
+  .ctl b { color: #374151; }
+
+  .onion { display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; }
+
+  /* 필름 스트립 */
+  #strip { display: flex; gap: 7px; overflow-x: auto; padding: 10px 2px 4px; margin-top: 4px; }
+  #strip img { height: 58px; border-radius: 8px; border: 2px solid transparent; cursor: pointer; flex: 0 0 auto;
+    background: #fff; box-shadow: 0 1px 4px rgba(0,0,0,.08); }
+  #strip img.active { border-color: #ec4899; }
+
+  /* 저장 버튼 */
+  .exports { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; margin-top: 2px; }
+  .exports button { width: 100%; }
+  .exports button.psd { grid-column: 1 / -1; }
+  @media (max-width: 480px) { .exports { grid-template-columns: 1fr; } }
+
+  .footnote { font-size: 12px; color: #6b7280; line-height: 1.7; margin-top: 12px; }
+  .footnote b { color: #374151; }
+  kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 1px 6px; font-size: 11.5px; font-weight: 700; color: #4b5563; }
+</style>
+</head>
+<body>
+
+  <h1>[쥐냥] 프레임 뷰어</h1>
+  <div class="sub">영상을 프레임으로 쪼개서 · 넘겨보고 · 겹쳐보고 · PNG/PSD로 저장</div>
+  <span class="edition-badge">🎬 FRAME VIEWER</span>
+
+  <!-- 1. 불러오기 & 크롭 -->
+  <div class="card">
+    <h2><span class="step">1 ·</span> 영상 불러오기</h2>
+    <div class="drop" id="drop">
+      <div class="big">📁 영상 파일을 끌어다 놓거나 클릭</div>
+      <div class="small">mp4 · mov · webm — 전부 이 컴퓨터 안에서만 처리돼요 (업로드 안 함)</div>
+    </div>
+    <input type="file" id="file" accept="video/*">
+    <div class="vinfo" id="vinfo"></div>
+
+    <div id="cropWrap">
+      <label class="toggle"><input type="checkbox" id="cropOn" checked> ⬛ 정사각형 부분만 잘라내기 (핸드폰 녹화용)</label>
+      <div class="cropStage" id="cropStage">
+        <canvas id="cropCanvas"></canvas>
+        <div id="cropBox"><span class="dim" id="cropDim"></span><span class="handle"></span></div>
+      </div>
+      <div class="hint">분홍 박스를 <b>드래그해서 이동</b>, 오른쪽 아래 <b>동그라미로 크기 조절</b> — 이 안쪽만 프레임으로 뽑혀요.</div>
+    </div>
+
+    <div class="row" id="settings" style="display:none">
+      <span class="label">몇 장으로 나눌까요?</span>
+      <input type="number" id="count" value="24" min="2" max="300">
+      <span class="label">시작(초)</span>
+      <input type="number" id="tstart" value="0" min="0" step="0.1">
+      <span class="label">끝(초)</span>
+      <input type="number" id="tend" value="" min="0" step="0.1" placeholder="끝까지">
+      <button class="primary" id="extract">프레임 추출 ✂️</button>
+    </div>
+    <div class="tip" id="tip">💡 움직임 공부는 <b>12~24장</b>이 보기 편해요. 동작이 복잡하면 48장 이상으로 늘려보세요.</div>
+
+    <div id="progress">
+      <div class="pbar-wrap"><i id="pbar"></i></div>
+      <div class="plbl" id="plbl">추출 중…</div>
+    </div>
+  </div>
+
+  <!-- 2. 뷰어 -->
+  <div class="card" id="viewer">
+    <h2><span class="step">2 ·</span> 프레임 넘겨보기</h2>
+    <div class="stage"><canvas id="display"></canvas></div>
+
+    <div class="transport">
+      <button id="prev">◀</button>
+      <button class="primary" id="play">▶ 재생</button>
+      <button id="next">▶</button>
+      <span class="counter"><b id="cur">1</b> / <span id="total">1</span></span>
+      <input type="range" class="seek" id="seek" min="0" value="0">
+    </div>
+
+    <div class="transport">
+      <div class="ctl">속도 <input type="range" id="fps" min="1" max="30" value="12"> <b id="fpsval">12</b> fps</div>
+      <label class="toggle"><input type="checkbox" id="loop" checked> 반복재생</label>
+    </div>
+
+    <div class="onion">
+      <label class="toggle"><input type="checkbox" id="onionOn"> 🧅 어니언 스킨 (잔상 겹쳐보기)</label>
+      <div class="ctl">앞뒤 <input type="range" id="onionN" min="1" max="4" value="1"> <b id="onionNval">1</b>장</div>
+      <div class="ctl">진하기 <input type="range" id="onionA" min="10" max="80" value="35"> <b id="onionAval">35</b>%</div>
+    </div>
+
+    <h2 style="margin:20px 0 8px">필름 스트립</h2>
+    <div id="strip"></div>
+
+    <h2 style="margin:14px 0"><span class="step">3 ·</span> 저장하기</h2>
+    <div class="exports">
+      <button id="dlOne">이 프레임 PNG</button>
+      <button id="dlZip">전체 PNG (ZIP)</button>
+      <button class="primary psd" id="dlPsd">PSD로 저장 (레이어별)</button>
+    </div>
+    <div class="footnote">
+      · <b>PNG(ZIP)</b>: 압축 풀고 포토샵 → <i>파일 &gt; 스크립트 &gt; 파일을 레이어로 불러오기</i> 하면 PSD처럼 쌓여요.<br>
+      · <b>PSD</b>: 각 프레임이 레이어로 쌓인 진짜 .psd 파일을 바로 받아요.<br>
+      · 단축키 — <kbd>←</kbd> <kbd>→</kbd> 프레임 이동 · <kbd>Space</kbd> 재생/정지
+    </div>
+  </div>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/ag-psd/dist/bundle.js"></script>
+<script>
+(() => {
+  const $ = id => document.getElementById(id);
+  const video = document.createElement('video');
+  video.muted = true; video.playsInline = true; video.preload = 'auto';
+
+  let frames = [];
+  let idx = 0;
+  let playTimer = null;
+  let baseName = 'frames';
+
+  const disp = $('display');
+  const dctx = disp.getContext('2d');
+
+  /* ---------- 파일 불러오기 ---------- */
+  const drop = $('drop');
+  drop.onclick = () => $('file').click();
+  ['dragover','dragenter'].forEach(e => drop.addEventListener(e, ev => {ev.preventDefault(); drop.classList.add('over');}));
+  ['dragleave','drop'].forEach(e => drop.addEventListener(e, ev => {ev.preventDefault(); drop.classList.remove('over');}));
+  drop.addEventListener('drop', ev => { const f = ev.dataTransfer.files[0]; if (f) loadVideo(f); });
+  $('file').onchange = e => { const f = e.target.files[0]; if (f) loadVideo(f); };
+
+  function loadVideo(file){
+    baseName = file.name.replace(/\.[^.]+$/,'') || 'frames';
+    video.src = URL.createObjectURL(file);
+    video.onloadedmetadata = () => {
+      const d = video.duration;
+      $('vinfo').innerHTML = `✅ <b>${file.name}</b> — ${video.videoWidth}×${video.videoHeight}px · 길이 ${d.toFixed(1)}초`;
+      $('settings').style.display = 'flex';
+      $('tip').style.display = 'block';
+      $('tend').placeholder = `끝까지 (${d.toFixed(1)})`;
+      if (d <= 5) $('count').value = 16;
+      initCrop();
+    };
+  }
+
+  /* ---------- 정사각형 크롭 ---------- */
+  const crop = { sx:0, sy:0, ss:0 };
+  const cropCanvas = $('cropCanvas');
+  const cropBox = $('cropBox');
+
+  async function initCrop(){
+    cropCanvas.width = video.videoWidth;
+    cropCanvas.height = video.videoHeight;
+    await seek(Math.max(0, +$('tstart').value || 0));
+    cropCanvas.getContext('2d').drawImage(video, 0, 0);
+    const ss = Math.min(video.videoWidth, video.videoHeight);
+    crop.ss = Math.round(ss * 0.85);
+    crop.sx = Math.round((video.videoWidth - crop.ss)/2);
+    crop.sy = Math.round((video.videoHeight - crop.ss)/2);
+    $('cropWrap').style.display = 'block';
+    updateBox();
+  }
+
+  function dScale(){ return cropCanvas.clientWidth / cropCanvas.width || 1; }
+
+  function updateBox(){
+    const s = dScale();
+    cropBox.style.display = $('cropOn').checked ? 'block' : 'none';
+    cropBox.style.left  = (crop.sx * s) + 'px';
+    cropBox.style.top   = (crop.sy * s) + 'px';
+    cropBox.style.width = (crop.ss * s) + 'px';
+    cropBox.style.height= (crop.ss * s) + 'px';
+    $('cropDim').textContent = `${crop.ss}×${crop.ss}px`;
+  }
+  window.addEventListener('resize', () => { if (video.src) updateBox(); });
+  $('cropOn').addEventListener('change', updateBox);
+  $('tstart').addEventListener('change', async () => {
+    if (!video.src) return;
+    await seek(Math.max(0, +$('tstart').value || 0));
+    cropCanvas.getContext('2d').drawImage(video, 0, 0);
+  });
+
+  cropBox.addEventListener('pointerdown', e => {
+    if (e.target.classList.contains('handle')) return;
+    e.preventDefault();
+    const s = dScale();
+    const startX = e.clientX, startY = e.clientY, ox = crop.sx, oy = crop.sy;
+    cropBox.setPointerCapture(e.pointerId);
+    const move = ev => {
+      crop.sx = Math.max(0, Math.min(video.videoWidth  - crop.ss, Math.round(ox + (ev.clientX - startX)/s)));
+      crop.sy = Math.max(0, Math.min(video.videoHeight - crop.ss, Math.round(oy + (ev.clientY - startY)/s)));
+      updateBox();
+    };
+    const up = () => { cropBox.removeEventListener('pointermove', move); cropBox.removeEventListener('pointerup', up); };
+    cropBox.addEventListener('pointermove', move);
+    cropBox.addEventListener('pointerup', up);
+  });
+
+  cropBox.querySelector('.handle').addEventListener('pointerdown', e => {
+    e.preventDefault(); e.stopPropagation();
+    const s = dScale();
+    const startX = e.clientX, startY = e.clientY, oss = crop.ss, handle = e.target;
+    handle.setPointerCapture(e.pointerId);
+    const maxSS = Math.min(video.videoWidth - crop.sx, video.videoHeight - crop.sy);
+    const move = ev => {
+      const delta = Math.max(ev.clientX - startX, ev.clientY - startY)/s;
+      crop.ss = Math.max(40, Math.min(maxSS, Math.round(oss + delta)));
+      updateBox();
+    };
+    const up = () => { handle.removeEventListener('pointermove', move); handle.removeEventListener('pointerup', up); };
+    handle.addEventListener('pointermove', move);
+    handle.addEventListener('pointerup', up);
+  });
+
+  /* ---------- 프레임 추출 ---------- */
+  $('extract').onclick = async () => {
+    if (!video.src) return;
+    const n = Math.max(2, Math.min(300, +$('count').value || 24));
+    const dur = video.duration;
+    let t0 = Math.max(0, +$('tstart').value || 0);
+    let t1 = $('tend').value === '' ? dur : Math.min(dur, +$('tend').value);
+    if (t1 <= t0) t1 = dur;
+    const span = t1 - t0;
+
+    frames.forEach(f => f.url && URL.revokeObjectURL(f.url));
+    frames = [];
+    stop();
+
+    const useCrop = $('cropOn').checked && crop.ss > 0;
+    const sx = useCrop ? crop.sx : 0;
+    const sy = useCrop ? crop.sy : 0;
+    const sw = useCrop ? crop.ss : video.videoWidth;
+    const sh = useCrop ? crop.ss : video.videoHeight;
+
+    const off = document.createElement('canvas');
+    off.width = sw; off.height = sh;
+    const octx = off.getContext('2d');
+
+    $('progress').style.display = 'block';
+    $('extract').disabled = true;
+
+    for (let i = 0; i < n; i++){
+      const t = t0 + span * (i / (n - 1 || 1));
+      await seek(Math.min(t, dur - 0.001));
+      octx.drawImage(video, sx, sy, sw, sh, 0, 0, sw, sh);
+      const c = document.createElement('canvas');
+      c.width = sw; c.height = sh;
+      c.getContext('2d').drawImage(off, 0, 0);
+      const url = await new Promise(r => c.toBlob(b => r(URL.createObjectURL(b)), 'image/png'));
+      frames.push({ time: t, canvas: c, url });
+      const pct = Math.round((i+1)/n*100);
+      $('pbar').style.width = pct + '%';
+      $('plbl').textContent = `추출 중… ${i+1}/${n}`;
+    }
+
+    $('extract').disabled = false;
+    $('progress').style.display = 'none';
+    setupViewer();
+  };
+
+  function seek(t){
+    return new Promise(res => {
+      const onSeeked = () => { video.removeEventListener('seeked', onSeeked); res(); };
+      video.addEventListener('seeked', onSeeked);
+      video.currentTime = t;
+    });
+  }
+
+  /* ---------- 뷰어 ---------- */
+  function setupViewer(){
+    $('viewer').style.display = 'block';
+    disp.width = frames[0].canvas.width;
+    disp.height = frames[0].canvas.height;
+    $('total').textContent = frames.length;
+    $('seek').max = frames.length - 1;
+    buildStrip();
+    idx = 0;
+    render();
+    $('viewer').scrollIntoView({behavior:'smooth', block:'start'});
+  }
+
+  function buildStrip(){
+    const strip = $('strip');
+    strip.innerHTML = '';
+    frames.forEach((f, i) => {
+      const im = new Image();
+      im.src = f.url;
+      im.onclick = () => { stop(); idx = i; render(); };
+      strip.appendChild(im);
+    });
+  }
+
+  function render(){
+    dctx.clearRect(0,0,disp.width,disp.height);
+    // 현재 프레임을 먼저 불투명하게 깔고
+    dctx.globalAlpha = 1;
+    dctx.drawImage(frames[idx].canvas, 0, 0);
+    // 앞뒤 프레임을 반투명하게 위에 얹어 잔상(모션 트레일)을 만든다
+    if ($('onionOn').checked){
+      const nN = +$('onionN').value;
+      const baseA = (+$('onionA').value)/100;
+      for (let k = 1; k <= nN; k++){
+        const a = baseA * (1 - (k-1)/nN * 0.55);
+        const before = frames[idx-k], after = frames[idx+k];
+        if (before){ dctx.globalAlpha = a; dctx.drawImage(before.canvas,0,0); }
+        if (after){ dctx.globalAlpha = a; dctx.drawImage(after.canvas,0,0); }
+      }
+      dctx.globalAlpha = 1;
+    }
+
+    $('cur').textContent = idx + 1;
+    $('seek').value = idx;
+    [...$('strip').children].forEach((el,i)=>el.classList.toggle('active', i===idx));
+    const active = $('strip').children[idx];
+    if (active) active.scrollIntoView({block:'nearest', inline:'nearest'});
+  }
+
+  /* ---------- 재생 ---------- */
+  function go(d){
+    idx += d;
+    if (idx >= frames.length){ idx = $('loop').checked ? 0 : frames.length-1; if(!$('loop').checked) stop(); }
+    if (idx < 0) idx = 0;
+    render();
+  }
+  function play(){
+    if (!frames.length) return;
+    stop();
+    playTimer = setInterval(() => go(1), 1000/(+$('fps').value));
+    $('play').textContent = '⏸ 정지';
+  }
+  function stop(){
+    if (playTimer){ clearInterval(playTimer); playTimer = null; }
+    $('play').textContent = '▶ 재생';
+  }
+  $('play').onclick = () => playTimer ? stop() : play();
+  $('prev').onclick = () => { stop(); go(-1); };
+  $('next').onclick = () => { stop(); go(1); };
+  $('seek').oninput = e => { stop(); idx = +e.target.value; render(); };
+  $('fps').oninput = e => { $('fpsval').textContent = e.target.value; if (playTimer) play(); };
+  $('onionN').oninput = e => { $('onionNval').textContent = e.target.value; render(); };
+  $('onionA').oninput = e => { $('onionAval').textContent = e.target.value; render(); };
+  $('onionOn').onchange = render;
+
+  document.addEventListener('keydown', e => {
+    if (!frames.length) return;
+    if (document.activeElement.tagName === 'INPUT') return;
+    if (e.key === 'ArrowLeft'){ stop(); go(-1); e.preventDefault(); }
+    if (e.key === 'ArrowRight'){ stop(); go(1); e.preventDefault(); }
+    if (e.key === ' '){ playTimer ? stop() : play(); e.preventDefault(); }
+  });
+
+  /* ---------- 저장 ---------- */
+  const pad = i => String(i+1).padStart(3,'0');
+
+  $('dlOne').onclick = () => {
+    frames[idx].canvas.toBlob(b => {
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(b);
+      a.download = `${baseName}_${pad(idx)}.png`;
+      a.click();
+    });
+  };
+
+  $('dlZip').onclick = async () => {
+    if (typeof JSZip === 'undefined'){ alert('ZIP 라이브러리를 못 불러왔어요. 인터넷 연결을 확인해주세요.'); return; }
+    const btn = $('dlZip'); btn.disabled = true; btn.textContent = '압축 중…';
+    const zip = new JSZip();
+    for (let i = 0; i < frames.length; i++){
+      const blob = await new Promise(r => frames[i].canvas.toBlob(r,'image/png'));
+      zip.file(`${baseName}_${pad(i)}.png`, blob);
+    }
+    const out = await zip.generateAsync({type:'blob'});
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(out);
+    a.download = `${baseName}_frames.zip`;
+    a.click();
+    btn.disabled = false; btn.textContent = '전체 PNG (ZIP)';
+  };
+
+  $('dlPsd').onclick = async () => {
+    if (typeof agPsd === 'undefined'){ alert('PSD 라이브러리를 못 불러왔어요. 인터넷 연결을 확인하거나, 대신 "전체 PNG(ZIP)"로 받아 포토샵에서 레이어로 불러오세요.'); return; }
+    const btn = $('dlPsd'); btn.disabled = true; btn.textContent = 'PSD 만드는 중…';
+    try {
+      const psd = {
+        width: frames[0].canvas.width,
+        height: frames[0].canvas.height,
+        children: frames.map((f,i) => ({ name:`frame_${pad(i)}`, canvas:f.canvas, hidden:i !== idx })).reverse(),
+      };
+      const buffer = agPsd.writePsd(psd);
+      const a = document.createElement('a');
+      a.href = URL.createObjectURL(new Blob([buffer], {type:'image/vnd.adobe.photoshop'}));
+      a.download = `${baseName}.psd`;
+      a.click();
+    } catch(err){
+      alert('PSD 생성 중 오류: ' + err.message + '\n대신 "전체 PNG(ZIP)"로 받아보세요.');
+    }
+    btn.disabled = false; btn.textContent = 'PSD로 저장 (레이어별)';
+  };
+})();
+</script>
+</body>
+</html>
