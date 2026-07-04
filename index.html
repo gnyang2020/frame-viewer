@@ -544,7 +544,8 @@
       const psd = {
         width: frames[0].canvas.width,
         height: frames[0].canvas.height,
-        children: frames.map((f,i) => ({ name:`frame_${pad(i)}`, canvas:f.canvas, hidden:i !== idx })).reverse(),
+        // frame_001을 맨 아래 레이어로 (children[0] = 최하단), 번호가 커질수록 위로 쌓임
+        children: frames.map((f,i) => ({ name:`frame_${pad(i)}`, canvas:f.canvas, hidden:i !== idx })),
       };
       const buffer = agPsd.writePsd(psd);
       const a = document.createElement('a');
