@@ -130,6 +130,17 @@
   button:disabled { opacity: .4; cursor: not-allowed; }
   button.primary:disabled { background: #f9a8d4; border-color: #f9a8d4; }
 
+  /* 추출 방식 세그먼트 */
+  .seg { display: inline-flex; gap: 4px; padding: 4px; background: #f1e1ea; border-radius: 999px; }
+  .seg button { border: 0; background: transparent; padding: 6px 14px; border-radius: 999px; color: #9d5b7a; font-weight: 700; }
+  .seg button:hover { background: transparent; }
+  .seg button.active { background: #fff; color: #be185d; box-shadow: 0 1px 3px rgba(0,0,0,.12); }
+  /* fps 프리셋 알약 */
+  .pills { display: inline-flex; gap: 6px; flex-wrap: wrap; }
+  .pills button { padding: 7px 12px; }
+  .pills button.active { background: #ec4899; color: #fff; border-color: #ec4899; }
+  .calc { font-size: 12px; color: #be185d; font-weight: 700; }
+
   .tip { display: none; font-size: 12px; color: #9d5b7a; background: #fdf2f8; border: 1.5px dashed #f9a8d4;
     border-radius: 10px; padding: 11px 13px; margin-top: 12px; line-height: 1.7; }
   .tip b { color: #be185d; }
@@ -165,6 +176,10 @@
   .ctl b { color: #374151; }
 
   .onion { display: flex; align-items: center; gap: 12px 18px; flex-wrap: wrap; margin-top: 14px; padding-top: 14px; border-top: 1px solid #f0f0f0; }
+  .legend { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: #6b7280; font-weight: 600; }
+  .legend .dot { width: 11px; height: 11px; border-radius: 50%; display: inline-block; }
+  .legend .dot.prev { background: rgb(120,210,70); }
+  .legend .dot.next { background: rgb(70,140,255); margin-left: 8px; }
 
   /* 필름 스트립 */
   #strip { display: flex; gap: 7px; overflow-x: auto; padding: 10px 2px 4px; margin-top: 4px; }
@@ -181,6 +196,30 @@
   .footnote { font-size: 12px; color: #6b7280; line-height: 1.7; margin-top: 12px; }
   .footnote b { color: #374151; }
   kbd { background: #f3f4f6; border: 1px solid #d1d5db; border-radius: 6px; padding: 1px 6px; font-size: 11.5px; font-weight: 700; color: #4b5563; }
+
+  /* 사용 가이드 (노티스바 + 탭 팝업) — 매직팟/오지큐 동일 양식 */
+  .notice-bar { display: flex; align-items: center; justify-content: center; gap: 8px; padding: 13px 16px;
+    background: #fdf2f8; border: 1.5px solid #f9a8d4; border-radius: 12px; cursor: pointer; margin: 0 0 16px;
+    transition: transform .1s cubic-bezier(0.34,1.56,0.64,1), background .15s; }
+  .notice-bar:hover { background: #fce7f3; }
+  .notice-bar:active { transform: scale(1.01); box-shadow: 0 4px 12px rgba(236,72,153,.15); }
+  .notice-bar-text { font-size: 13px; font-weight: 800; color: #be185d; }
+  .popup-overlay { display: none; position: fixed; inset: 0; background: rgba(0,0,0,.45); z-index: 1000; align-items: center; justify-content: center; padding: 16px; }
+  .popup-overlay.active { display: flex; }
+  .popup-box { background: #fff; border-radius: 16px; padding: 26px 22px 18px; width: 100%; max-width: 480px; max-height: 84vh; overflow: hidden; position: relative; box-shadow: 0 8px 40px rgba(0,0,0,.2); display: flex; flex-direction: column; }
+  .popup-title { font-size: 15px; font-weight: 800; color: #be185d; text-align: center; margin-bottom: 14px; }
+  .popup-close { position: absolute; top: 12px; right: 14px; background: none; border: 0; padding: 0; font-size: 20px; color: #9ca3af; cursor: pointer; }
+  .popup-close:hover { background: none; color: #374151; }
+  .popup-tabs { display: flex; gap: 6px; margin-bottom: 14px; }
+  .popup-tab { flex: 1; padding: 9px 10px; border: 2px solid #e5e7eb; border-radius: 8px; background: #fff; color: #9ca3af; font-size: 12px; font-weight: 700; cursor: pointer; text-align: center; font-family: inherit; }
+  .popup-tab.active { border-color: #f9a8d4; background: #fdf2f8; color: #be185d; }
+  .popup-scroll { flex: 1; overflow-y: auto; font-size: 12.5px; color: #4b5563; line-height: 1.85; }
+  .popup-scroll .g-sec { font-weight: 800; font-size: 13px; color: #be185d; margin: 16px 0 6px; }
+  .popup-scroll .g-sec:first-child { margin-top: 0; }
+  .popup-scroll b { color: #1f2937; }
+  .popup-scroll .step { color: #ec4899; font-weight: 800; }
+  .g-box { background: #fdf2f8; border: 1.5px dashed #f9a8d4; border-radius: 10px; padding: 11px 13px; font-size: 11.5px; line-height: 1.95; color: #555; margin: 10px 0 4px; }
+  .g-box b { color: #be185d; }
 </style>
 </head>
 <body>
@@ -188,6 +227,10 @@
   <h1>[쥐냥] 프레임 뷰어</h1>
   <div class="sub">영상을 프레임으로 쪼개서 · 넘겨보고 · 겹쳐보고 · PNG/PSD로 저장</div>
   <span class="edition-badge">🎬 FRAME VIEWER</span>
+
+  <div class="notice-bar" onclick="openGuide()">
+    <span class="notice-bar-text">📖 처음이라면? 사용 가이드 보기 ▸</span>
+  </div>
 
   <!-- 1. 불러오기 & 크롭 -->
   <div class="card">
@@ -208,16 +251,41 @@
       <div class="hint">분홍 박스를 <b>드래그해서 이동</b>, 오른쪽 아래 <b>동그라미로 크기 조절</b> — 이 안쪽만 프레임으로 뽑혀요.</div>
     </div>
 
-    <div class="row" id="settings" style="display:none">
-      <span class="label">몇 장으로 나눌까요?</span>
-      <input type="number" id="count" value="24" min="2" max="300">
-      <span class="label">시작(초)</span>
-      <input type="number" id="tstart" value="0" min="0" step="0.1">
-      <span class="label">끝(초)</span>
-      <input type="number" id="tend" value="" min="0" step="0.1" placeholder="끝까지">
-      <button class="primary" id="extract">프레임 추출 ✂️</button>
+    <div id="settings" style="display:none">
+      <div class="row">
+        <span class="label">추출 방식</span>
+        <div class="seg" id="modeSeg">
+          <button type="button" data-mode="fps" class="active">초당 프레임(fps)</button>
+          <button type="button" data-mode="count">직접 장수</button>
+        </div>
+      </div>
+
+      <div class="row" id="rowFps">
+        <span class="label">초당 프레임</span>
+        <div class="pills" id="fpsPresets">
+          <button type="button" data-fps="8">8</button>
+          <button type="button" data-fps="10">10</button>
+          <button type="button" data-fps="12">12</button>
+          <button type="button" data-fps="15">15</button>
+          <button type="button" data-fps="24">24</button>
+        </div>
+        <input type="number" id="fpsCount" value="8" min="1" max="60"> fps
+        <span class="calc" id="fpsCalc"></span>
+      </div>
+
+      <div class="row" id="rowCount" style="display:none">
+        <span class="label">몇 장으로</span>
+        <input type="number" id="count" value="24" min="2" max="300"> 장
+      </div>
+
+      <div class="row">
+        <span class="label">구간</span>
+        <input type="number" id="tstart" value="0" min="0" step="0.1"> ~
+        <input type="number" id="tend" value="" min="0" step="0.1" placeholder="끝까지"> 초
+        <button class="primary" id="extract">프레임 추출 ✂️</button>
+      </div>
     </div>
-    <div class="tip" id="tip">💡 움직임 공부는 <b>12~24장</b>이 보기 편해요. 동작이 복잡하면 48장 이상으로 늘려보세요.</div>
+    <div class="tip" id="tip">💡 클튜·프크에서 쓰는 fps 그대로 맞추면 돼요 — <b>프크 8프레임 = 8fps</b>. 장수는 <b>구간 × fps</b>로 자동 계산되고, 추출한 fps로 재생돼서 실제 움직임 속도가 그대로 보여요.</div>
 
     <div id="progress">
       <div class="pbar-wrap"><i id="pbar"></i></div>
@@ -244,9 +312,10 @@
     </div>
 
     <div class="onion">
-      <label class="toggle"><input type="checkbox" id="onionOn"> 🧅 어니언 스킨 (잔상 겹쳐보기)</label>
+      <label class="toggle"><input type="checkbox" id="onionOn"> 🧅 어니언 스킨</label>
+      <span class="legend"><i class="dot prev"></i>이전<i class="dot next"></i>다음</span>
       <div class="ctl">앞뒤 <input type="range" id="onionN" min="1" max="4" value="1"> <b id="onionNval">1</b>장</div>
-      <div class="ctl">진하기 <input type="range" id="onionA" min="10" max="80" value="35"> <b id="onionAval">35</b>%</div>
+      <div class="ctl">진하기 <input type="range" id="onionA" min="10" max="90" value="55"> <b id="onionAval">55</b>%</div>
     </div>
 
     <h2 style="margin:20px 0 8px">필름 스트립</h2>
@@ -264,6 +333,49 @@
       · 단축키 — <kbd>←</kbd> <kbd>→</kbd> 프레임 이동 · <kbd>Space</kbd> 재생/정지
     </div>
   </div>
+
+  <!-- 사용 가이드 팝업 -->
+  <div class="popup-overlay" id="guidePopup" onclick="if(event.target===this)closeGuide()">
+    <div class="popup-box">
+      <button class="popup-close" onclick="closeGuide()">✕</button>
+      <div class="popup-title">📖 프레임 뷰어 사용 가이드</div>
+      <div class="popup-tabs">
+        <button class="popup-tab active" id="gTab1" onclick="switchGuideTab(1)">📱 녹화 &amp; 설정</button>
+        <button class="popup-tab" id="gTab2" onclick="switchGuideTab(2)">🎬 프레임 레이트</button>
+      </div>
+      <div class="popup-scroll">
+        <div id="gContent1">
+          <div class="g-sec">1 · 녹화 및 설정 방법</div>
+          이모티콘 샵이나 카톡 채팅창에서 본 움직이는 이모티콘, <b>“이건 어떻게 움직이지?”</b> 궁금할 때 그 움직임을 뜯어보는 순서예요.<br><br>
+          <span class="step">(a)</span> 참고할 애니메이션을 <b>휴대폰 화면 그대로 녹화</b>한 뒤, 그 영상 파일을 <b>불러오기</b>로 올려요.<br>
+          <span class="step">(b)</span> 영상 위 <b>분홍 정사각형 박스</b>를 드래그·크기조절해서 <b>이모티콘이 들어갈 정사각형 영역</b>만 딱 맞춰요. (이 안쪽만 프레임으로 잘려요)<br>
+          <span class="step">(c)</span> 아래 <b>프레임 레이트(추출 방식) 메뉴</b>를 눌러 몇 fps로 뜯을지 정해요.
+          <div class="g-box">💡 카톡·이모티콘 샵의 움직이는 이모티콘을 화면 녹화 → 이 뷰어로 프레임을 한 장씩 뜯어보면, <b>어떤 동작이 몇 장으로 이뤄졌는지</b> 그대로 분석돼요.</div>
+        </div>
+        <div id="gContent2" style="display:none">
+          <div class="g-sec">2 · 프레임 레이트(fps) 상세 안내</div>
+          <span class="step">(a)</span> 수치는 <b>클립스튜디오·프로크리에이트에서 쓰는 값 그대로</b> 맞추면 돼요.<br>
+          &nbsp;&nbsp;예) 프크에서 <b>8프레임</b>으로 만들 계획이면 여기서도 <b>8fps</b>를 선택.<br><br>
+          <span class="step">(b)</span> ‘프레임 레이트’는 <b>1초에 몇 장을 보여주는지</b>를 뜻해요 — <b>8fps = 1초에 8장</b>.<br>
+          &nbsp;&nbsp;· fps만 고르면 <b>장수는 자동 계산</b> → <b>구간(초) × fps</b><br>
+          &nbsp;&nbsp;· 예) 3초 영상 × 8fps = <b>24장</b>, × 10fps = <b>30장</b><br>
+          &nbsp;&nbsp;· 뽑은 fps로 <b>재생 속도까지 자동 설정</b>돼서, 프크에서 볼 실제 움직임 속도 그대로 미리보기 돼요.
+          <div class="g-box">🎬 클튜·프크 상용값: <b>8 · 10 · 12 · 15 · 24 fps</b> (프리셋 버튼 제공). 부드러울수록 fps↑ = 그릴 장수↑.<br>👉 ‘직접 장수’ 방식으로 총 N장을 지정할 수도 있어요.</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function openGuide(){ document.getElementById('guidePopup').classList.add('active'); }
+    function closeGuide(){ document.getElementById('guidePopup').classList.remove('active'); }
+    function switchGuideTab(n){
+      document.getElementById('gTab1').classList.toggle('active', n === 1);
+      document.getElementById('gTab2').classList.toggle('active', n === 2);
+      document.getElementById('gContent1').style.display = n === 1 ? 'block' : 'none';
+      document.getElementById('gContent2').style.display = n === 2 ? 'block' : 'none';
+    }
+  </script>
 
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/ag-psd/dist/bundle.js"></script>
@@ -295,10 +407,11 @@
     video.onloadedmetadata = () => {
       const d = video.duration;
       $('vinfo').innerHTML = `✅ <b>${file.name}</b> — ${video.videoWidth}×${video.videoHeight}px · 길이 ${d.toFixed(1)}초`;
-      $('settings').style.display = 'flex';
+      $('settings').style.display = 'block';
       $('tip').style.display = 'block';
       $('tend').placeholder = `끝까지 (${d.toFixed(1)})`;
       if (d <= 5) $('count').value = 16;
+      markFpsPreset(); updateFpsCalc();
       initCrop();
     };
   }
@@ -372,15 +485,61 @@
     handle.addEventListener('pointerup', up);
   });
 
+  /* ---------- 추출 방식 (fps ↔ 장수) ---------- */
+  let extractMode = 'fps';
+
+  $('modeSeg').addEventListener('click', e => {
+    const b = e.target.closest('button[data-mode]'); if (!b) return;
+    extractMode = b.dataset.mode;
+    [...$('modeSeg').children].forEach(x => x.classList.toggle('active', x === b));
+    $('rowFps').style.display   = extractMode === 'fps'   ? 'flex' : 'none';
+    $('rowCount').style.display = extractMode === 'count' ? 'flex' : 'none';
+    updateFpsCalc();
+  });
+  $('fpsPresets').addEventListener('click', e => {
+    const b = e.target.closest('button[data-fps]'); if (!b) return;
+    $('fpsCount').value = b.dataset.fps;
+    markFpsPreset(); updateFpsCalc();
+  });
+  $('fpsCount').addEventListener('input', () => { markFpsPreset(); updateFpsCalc(); });
+  $('tstart').addEventListener('input', updateFpsCalc);
+  $('tend').addEventListener('input', updateFpsCalc);
+
+  function markFpsPreset(){
+    const v = $('fpsCount').value;
+    [...$('fpsPresets').children].forEach(x => x.classList.toggle('active', x.dataset.fps === v));
+  }
+  function rangeSpan(){
+    if (!video.duration) return 0;
+    const dur = video.duration;
+    let t0 = Math.max(0, +$('tstart').value || 0);
+    let t1 = $('tend').value === '' ? dur : Math.min(dur, +$('tend').value);
+    if (t1 <= t0) t1 = dur;
+    return t1 - t0;
+  }
+  function fpsFrameCount(){
+    const fps = Math.max(1, +$('fpsCount').value || 8);
+    return Math.max(2, Math.min(300, Math.round(rangeSpan() * fps)));
+  }
+  function updateFpsCalc(){
+    if (extractMode !== 'fps' || !video.duration){ $('fpsCalc').textContent = ''; return; }
+    $('fpsCalc').textContent = `→ ${rangeSpan().toFixed(1)}초 × ${(+$('fpsCount').value||8)}fps = ${fpsFrameCount()}장`;
+  }
+
   /* ---------- 프레임 추출 ---------- */
   $('extract').onclick = async () => {
     if (!video.src) return;
-    const n = Math.max(2, Math.min(300, +$('count').value || 24));
     const dur = video.duration;
     let t0 = Math.max(0, +$('tstart').value || 0);
     let t1 = $('tend').value === '' ? dur : Math.min(dur, +$('tend').value);
     if (t1 <= t0) t1 = dur;
     const span = t1 - t0;
+    const n = extractMode === 'fps' ? fpsFrameCount() : Math.max(2, Math.min(300, +$('count').value || 24));
+    // fps 방식이면 재생 속도도 그 fps로 맞춰 실제 움직임 속도로 미리보기
+    if (extractMode === 'fps'){
+      const pf = Math.max(1, Math.min(30, +$('fpsCount').value || 8));
+      $('fps').value = pf; $('fpsval').textContent = pf;
+    }
 
     frames.forEach(f => f.url && URL.revokeObjectURL(f.url));
     frames = [];
@@ -450,22 +609,54 @@
     });
   }
 
+  /* ---------- 어니언 스킨 (이전=연두 / 다음=파랑, '움직인 부분'만 색칠) ---------- */
+  const ONION_PREV = [120, 210, 70];  // 이전 프레임 = 연두
+  const ONION_NEXT = [70, 140, 255];  // 다음 프레임 = 파랑
+  const onionCanvas = document.createElement('canvas');
+  const onionCtx = onionCanvas.getContext('2d');
+
+  function framePixels(f){
+    if (!f._px){
+      const c = f.canvas;
+      f._px = c.getContext('2d').getImageData(0, 0, c.width, c.height).data;
+    }
+    return f._px;
+  }
+  // 이웃 프레임이 현재 프레임과 다른(=움직인) 픽셀만 color로 칠해 얹는다
+  function drawOnionLayer(neighbor, curPx, color, alpha){
+    const w = disp.width, h = disp.height;
+    if (onionCanvas.width !== w || onionCanvas.height !== h){ onionCanvas.width = w; onionCanvas.height = h; }
+    const np = framePixels(neighbor);
+    const img = onionCtx.createImageData(w, h);
+    const d = img.data, r = color[0], g = color[1], b = color[2], TH = 22;
+    for (let i = 0; i < d.length; i += 4){
+      const diff = Math.abs(np[i]-curPx[i]) + Math.abs(np[i+1]-curPx[i+1]) + Math.abs(np[i+2]-curPx[i+2]);
+      if (diff > TH){
+        d[i] = r; d[i+1] = g; d[i+2] = b;
+        // 움직인 픽셀은 충분히 진하게 (약한 움직임도 최소 절반 세기로 보이게)
+        d[i+3] = Math.min(255, alpha * Math.min(1, 0.5 + diff / 120));
+      }
+    }
+    onionCtx.putImageData(img, 0, 0);
+    dctx.drawImage(onionCanvas, 0, 0);
+  }
+
   function render(){
     dctx.clearRect(0,0,disp.width,disp.height);
-    // 현재 프레임을 먼저 불투명하게 깔고
+    // 현재 프레임을 불투명하게 깔고
     dctx.globalAlpha = 1;
     dctx.drawImage(frames[idx].canvas, 0, 0);
-    // 앞뒤 프레임을 반투명하게 위에 얹어 잔상(모션 트레일)을 만든다
+    // 앞뒤 프레임의 '움직인 부분'만 이전=연두 / 다음=파랑으로 색칠해 겹친다
     if ($('onionOn').checked){
       const nN = +$('onionN').value;
-      const baseA = (+$('onionA').value)/100;
-      for (let k = 1; k <= nN; k++){
-        const a = baseA * (1 - (k-1)/nN * 0.55);
+      const baseA = (+$('onionA').value) / 100 * 255;
+      const cur = framePixels(frames[idx]);
+      for (let k = nN; k >= 1; k--){
+        const a = baseA * (1 - (k-1)/nN * 0.5);
         const before = frames[idx-k], after = frames[idx+k];
-        if (before){ dctx.globalAlpha = a; dctx.drawImage(before.canvas,0,0); }
-        if (after){ dctx.globalAlpha = a; dctx.drawImage(after.canvas,0,0); }
+        if (before) drawOnionLayer(before, cur, ONION_PREV, a);
+        if (after)  drawOnionLayer(after,  cur, ONION_NEXT, a);
       }
-      dctx.globalAlpha = 1;
     }
 
     $('cur').textContent = idx + 1;
